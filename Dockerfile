@@ -7,6 +7,8 @@ RUN apt-get update && apt-get install -y pulseaudio python3 python3-pip
 
 RUN pip3 install pyyaml
 
+RUN pip install paho-mqtt
+
 ADD ./run.py /root/run.py
 
 ENTRYPOINT ["/root/run.py"]
