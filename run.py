@@ -4,6 +4,7 @@ import logging
 import yaml
 import paho.mqtt.client as mqtt
 import subprocess
+import json
 
 logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.INFO)
 
@@ -30,6 +31,7 @@ mqtt_host = mqtt_config.get("host", "localhost")
 mqtt_port = mqtt_config.get("port", "1883")
 mqtt_username = mqtt_config.get("username")
 mqtt_password = mqtt_config.get("password")
+mqtt_id = required_key(mqtt_config, "id")
 
 def create_command(name, config):
     if (config is None):
@@ -124,13 +126,29 @@ def determine_current_state():
 
 def publish_current_state(current_state):
     logging.info(f"Publishing current state [{current_state}] to [{mqtt_topic}/{mqtt_name}/status]")
-    client.publish(f"{mqtt_topic}/{mqtt_name}/status", current_state, 2, True)
+    client.publish(f"{mqtt_topic}/{mqtt_name}/state", current_state, 2, False)
+
+def publish_available_states():
+    available_states = []
+    for name in states.keys():
+        available_states.append(name)
+    available_states.append("error")
+    logging.info(f"Publishing available states [{available_states}] to [{mqtt_topic}/{mqtt_name}/status]")
+    config = {
+        "name": mqtt_name, 
+        "command_topic": f"{mqtt_topic}/{mqtt_name}/activate", 
+        "state_topic": f"{mqtt_topic}/{mqtt_name}/state",
+        "options": available_states,
+        "unique_id": mqtt_id
+    }
+    client.publish(f"homeassistant/select/{mqtt_topic}/{mqtt_name}/config", json.dumps(config), 2, True)
 
 def on_connect(client, userdata, flags, rc):
     if (rc != 0):
         logging.error(f"MQTT connection dailed with {rc}")
         exit(1)
     logging.info("MQTT connected")
+    publish_available_states()
     publish_current_state(determine_current_state())
     logging.info(f"Subscribing to [{mqtt_topic}/{mqtt_name}/activate]")
     client.subscribe(f"{mqtt_topic}/{mqtt_name}/activate", 2)
