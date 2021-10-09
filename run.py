@@ -160,6 +160,7 @@ def activate_state(name):
         publish_current_state(current_state)
     elif (current_state == name):
         logging.info(f"Current state is already [{name}]")
+        publish_current_state(current_state)
     else:
         if (states.get(current_state).deactivate() is False):
             logging.warn(f"Failed to deactivate current state [{current_state}]")
@@ -168,6 +169,7 @@ def activate_state(name):
             state = states.get(name)
             if (state is None):
                 logging.warning(f"Tried to activate unknown state [{name}] in [{states.keys()}]")
+                publish_current_state(current_state)
             else:
                 if (state.activate()):
                     publish_current_state(name)
