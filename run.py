@@ -126,7 +126,7 @@ def determine_current_state():
 
 def publish_current_state(current_state):
     logging.info(f"Publishing current state [{current_state}] to [{mqtt_topic}/{mqtt_name}/status]")
-    client.publish(f"{mqtt_topic}/{mqtt_name}/state", current_state, 2, False)
+    client.publish(f"{mqtt_topic}/{mqtt_name}/state", current_state, 2, True)
 
 def publish_available_states():
     available_states = []
@@ -155,7 +155,10 @@ def on_connect(client, userdata, flags, rc):
 
 def activate_state(name):
     current_state = determine_current_state()
-    if (current_state == name):
+    if (name == "error"):
+        logging.warning(f"Cannot activate state error")
+        publish_current_state(current_state)
+    elif (current_state == name):
         logging.info(f"Current state is already [{name}]")
     else:
         if (states.get(current_state).deactivate() is False):
