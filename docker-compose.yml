@@ -1,0 +1,11 @@
+version: "3"
+services:
+  dev:
+    build: 
+      context: .
+      dockerfile: Dockerfile.dev
+    volumes:
+      - .:/workspace
+    command: /bin/sh -c "while sleep 1000; do :; done"
+  mqtt:
+    image: eclipse-mosquitto:1.6

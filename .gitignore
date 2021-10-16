@@ -1,2 +1,5 @@
-config.yml
-build.sh
+# Python
+__pycache__
+
+# Live Tests
+test/active

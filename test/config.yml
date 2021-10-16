@@ -1,0 +1,23 @@
+mqtt:
+  name: test
+  id: test
+
+states:
+  inactive:
+    test:
+      type: shell
+      command: ls /workspace/test/active
+      return_code: 2
+  active:
+    test:
+      type: shell
+      command: ls /workspace/test/active
+      return_code: 0
+    activate:
+      type: shell
+      command: touch /workspace/test/active
+      return_code: 0
+    deactivate:
+      type: shell
+      command: rm /workspace/test/active
+      return_code: 0

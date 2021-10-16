@@ -1,14 +1,17 @@
-#!/usr/bin/python3
-
 import logging
 import yaml
 import paho.mqtt.client as mqtt
 import subprocess
 import json
+import argparse
 
-logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.INFO)
+logging.basicConfig(format="%(asctime)s - %(message)s", level=logging.INFO)
 
-with open("/root/config.yml", "r") as file:
+parser = argparse.ArgumentParser(prog="Halux", description="Control a system through MQTT and Home Assistant")
+parser.add_argument("--config", required=True, help="location of the config file")
+args = parser.parse_args()
+
+with open(args.config, "r") as file:
 	try:
 		config = yaml.safe_load(file)
 	except yaml.YAMLError as ex:
@@ -27,8 +30,8 @@ def required_key(config, key):
 mqtt_config = required_key(config, "mqtt")
 mqtt_name = required_key(mqtt_config, "name")
 mqtt_topic = mqtt_config.get("topic", "halux")
-mqtt_host = mqtt_config.get("host", "localhost")
-mqtt_port = mqtt_config.get("port", "1883")
+mqtt_host = mqtt_config.get("host", "mqtt")
+mqtt_port = mqtt_config.get("port", 1883)
 mqtt_username = mqtt_config.get("username")
 mqtt_password = mqtt_config.get("password")
 mqtt_id = required_key(mqtt_config, "id")
@@ -96,12 +99,13 @@ class Shell():
         logging.info(f"Running [{self._command}] for [{self._name}]")
         result = subprocess.run(self._command, shell=True, capture_output=True)
         logging.info(f"Result of running [{self._command}] for [{self._name}] is [{result}]")
+        stdout = result.stdout.decode("utf-8").strip();
         if (self._return_code == result.returncode):
             if (self._return_value is not None):
-                return self._return_value == result.stdout.decode('utf-8').strip()
+                return self._return_value == stdout
             return True
         else:
-            logging.info(f"{self._return_value} {result.stdout.decode('utf-8').strip()}")
+            logging.info(f"{self._return_value} {stdout}")
             return False
 
 states = {}
@@ -145,7 +149,7 @@ def publish_available_states():
 
 def on_connect(client, userdata, flags, rc):
     if (rc != 0):
-        logging.error(f"MQTT connection dailed with {rc}")
+        logging.error(f"MQTT connection dailed with [{rc}]")
         exit(1)
     logging.info("MQTT connected")
     publish_available_states()
@@ -178,15 +182,15 @@ def activate_state(name):
 
 def on_message(client, userdata, msg):
     if (msg.topic == f"{mqtt_topic}/{mqtt_name}/activate"):
-        activate_state(msg.payload.decode('utf-8'))
+        activate_state(msg.payload.decode("utf-8"))
     else:
         logging.warning(f"MQTT message received but not recognized [{msg.topic}] [{msg.payload}]")
 
 logging.info("MQTT connecting")
 client = mqtt.Client()
 if (mqtt_username is not None):
-    client.username_pw_set(mqtt_config["username"], mqtt_config["password"])
+    client.username_pw_set(mqtt_username, mqtt_password)
 client.on_connect = on_connect
 client.on_message = on_message
-client.connect(mqtt_config["host"], mqtt_config["port"], 60)
+client.connect(mqtt_host, mqtt_port, 60)
 client.loop_forever()
