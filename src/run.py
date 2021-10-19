@@ -3,7 +3,6 @@ import yaml
 import json
 import argparse
 import state
-import paho.mqtt.client as paho
 import mqtt
 
 logging.basicConfig(format="%(asctime)s - %(message)s", level=logging.INFO)
@@ -39,11 +38,11 @@ def determine_current_state():
     logging.info(f"Determined current state as [{temp_state}]")
     return temp_state
 
-def publish_current_state(current_state):
+def publish_current_state(client, current_state):
     logging.info(f"Publishing current state [{current_state}] to [{config.topic}/{config.name}/status]")
     client.publish(f"{config.topic}/{config.name}/state", current_state, 2, True)
 
-def publish_available_states():
+def publish_available_states(client):
     available_states = []
     for name in states.keys():
         available_states.append(name)
@@ -63,45 +62,37 @@ def on_connect(client, userdata, flags, rc):
         logging.error(f"MQTT connection dailed with [{rc}]")
         exit(1)
     logging.info("MQTT connected")
-    publish_available_states()
-    publish_current_state(determine_current_state())
+    publish_available_states(client)
+    publish_current_state(client, determine_current_state())
     logging.info(f"Subscribing to [{config.topic}/{config.name}/activate]")
     client.subscribe(f"{config.topic}/{config.name}/activate", 2)
 
-def activate_state(name):
+def activate_state(client, name):
     current_state = determine_current_state()
-    if (name == "error"):
-        logging.warning(f"Cannot activate state error")
-        publish_current_state(current_state)
+    if (name == "broken"):
+        logging.warning(f"Cannot activate state broken")
+        publish_current_state(client, current_state)
     elif (current_state == name):
         logging.info(f"Current state is already [{name}]")
-        publish_current_state(current_state)
+        publish_current_state(client, current_state)
     else:
-        if (states.get(current_state).deactivate() is False):
+        state = states.get(name)
+        if (state is None):
+            logging.warning(f"Tried to activate unknown state [{name}] in [{states.keys()}]")
+            publish_current_state(client, current_state)
+        elif (state.deactivate() is False):
             logging.warn(f"Failed to deactivate current state [{current_state}]")
-            publish_current_state("broken")
+            publish_current_state(client, "broken")
         else:
-            state = states.get(name)
-            if (state is None):
-                logging.warning(f"Tried to activate unknown state [{name}] in [{states.keys()}]")
-                publish_current_state(current_state)
+            if (state.activate()):
+                publish_current_state(client, name)
             else:
-                if (state.activate()):
-                    publish_current_state(name)
-                else:
-                    publish_current_state("broken")
+                publish_current_state(client, "broken")
 
 def on_message(client, userdata, msg):
     if (msg.topic == f"{config.topic}/{config.name}/activate"):
-        activate_state(msg.payload.decode("utf-8"))
+        activate_state(client, msg.payload.decode("utf-8"))
     else:
         logging.warning(f"MQTT message received but not recognized [{msg.topic}] [{msg.payload}]")
 
-logging.info("MQTT connecting")
-client = paho.Client()
-if (config.username is not None):
-    client.username_pw_set(config.username, config.password)
-client.on_connect = on_connect
-client.on_message = on_message
-client.connect(config.host, config.port, 60)
-client.loop_forever()
+mqtt.run(config, on_connect, on_message)
