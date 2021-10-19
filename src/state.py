@@ -2,23 +2,26 @@ import logging
 import command
 import util
 
-class State():
-    def __init__(self, name, config):
-        self._name = name
-        self._test = command.create_command(name, util.required_key(config, "test"))
-        self._activate = command.create_command(name, config.get("activate"))
-        self._deactivate = command.create_command(name, config.get("deactivate"))
+class Option():
+    def __init__(self, config):
+        self._name = util.required_key(config, "name")
+        self._test = command.create_command(util.required_key(config, "test"))
+        self._activate = command.create_command(config.get("activate"))
+        self._deactivate = command.create_command(config.get("deactivate"))
     
+    def name(self):
+        return self._name
+
     def test(self):
         logging.info(f"Running test for [{self._name}]")
-        return self._test.run()
+        return self._test.run(self._name)
     
     def activate(self):
         logging.info(f"Running activate for [{self._name}]")
         if (self._activate is None):
             logging.info(f"Running nothing to activate for [{self._name}]")
             return True
-        if (self._activate.run()):
+        if (self._activate.run(self._name)):
             if (self.test()):
                 logging.info(f"Running activate for [{self._name}] succeeded")
                 return True
@@ -34,7 +37,7 @@ class State():
         if (self._deactivate is None):
             logging.info(f"Running nothing to deactivate for [{self._name}]")
             return True
-        if (self._deactivate.run()):
+        if (self._deactivate.run(self._name)):
             if (self.test()):
                 logging.error(f"Running deactivate for [{self._name}] succeeded but test succeeded immediately afterwards")
                 return False
@@ -45,8 +48,25 @@ class State():
             logging.error(f"Running deactivate for [{self._name}] failed")
             return False
 
-def create_state(config):
+def create_options(config):
     states = {}
-    for name, value in config["states"].items():
-        states[name] = State(name, value)
+    for item in config:
+        states[util.required_key(item, "name")] = Option(item)
+    return states
+
+class State():
+    def __init__(self, config):
+        self._name = util.required_key(config, "name")
+        self._options = create_options(util.required_key(config, "options"))
+    
+    def name(self):
+        return self._name
+    
+    def options(self):
+        return self._options
+
+def create_states(config):
+    states = {}
+    for item in config["states"]:
+        states[util.required_key(item, "name")] = State(item)
     return states

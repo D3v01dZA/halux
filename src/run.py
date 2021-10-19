@@ -20,42 +20,55 @@ with open(args.config, "r") as file:
 		exit(1)
 
 config = mqtt.create_config(config_file)
-states = state.create_state(config_file)
+states = state.create_states(config_file)
 
-def determine_current_state():
-    logging.info("Determining current state")
-    temp_state = None
-    for key, value in states.items():
+def determine_current_option(state):
+    logging.info(f"Determining current option for state {state.name()}")
+    temp_option = None
+    for key, value in state.options().items():
         if (value.test() is True):
             logging.info(f"Test [{key}] succeeded")
-            if (temp_state != None):
-                logging.error(f"Test [{key}] succeeded after [{temp_state}] already succeeded")
-            temp_state = key
+            if (temp_option != None):
+                logging.error(f"Test [{key}] succeeded after [{temp_option.name()}] already succeeded")
+            temp_option = value
         else:
             logging.info(f"Test [{key}] failed")
-    if (temp_state == None):
-        temp_state = "broken"
-    logging.info(f"Determined current state as [{temp_state}]")
-    return temp_state
+    if (temp_option == None):
+        temp_option = "broken"
+    logging.info(f"Determined current option as [{temp_option.name()}] for state {state.name()}")
+    return temp_option
 
-def publish_current_state(client, current_state):
-    logging.info(f"Publishing current state [{current_state}] to [{config.topic}/{config.name}/status]")
-    client.publish(f"{config.topic}/{config.name}/state", current_state, 2, True)
+def publish_current_option(client, state, current_option):
+    logging.info(f"Publishing current state [{current_option}] to [{config.topic}/{config.name}/{state.name()}/status]")
+    client.publish(f"{config.topic}/{config.name}/{state.name()}/state", current_option, 2, True)
 
-def publish_available_states(client):
+def publish_current_options(client):
+    for state in states.values():
+        publish_current_option(client, state, determine_current_option(state).name())
+
+def publish_available_options(client, state):
     available_states = []
-    for name in states.keys():
+    for name in state.options().keys():
         available_states.append(name)
     available_states.append("error")
     logging.info(f"Publishing available states [{available_states}] to [{config.topic}/{config.name}/status]")
     json_value = {
         "name": config.name, 
-        "command_topic": f"{config.topic}/{config.name}/activate", 
-        "state_topic": f"{config.topic}/{config.name}/state",
+        "command_topic": f"{config.topic}/{config.name}/{state.name()}/activate", 
+        "state_topic": f"{config.topic}/{config.name}/{state.name()}/state",
         "options": available_states,
-        "unique_id": config.id
+        "unique_id": f"{config.id}-{state.name()}"
     }
     client.publish(f"homeassistant/select/{config.topic}/{config.name}/config", json.dumps(json_value), 2, True)
+
+def publish_available_states(client):
+    for state in states.values():
+        publish_available_options(client, state)
+
+def subscribe_to_activate_topics(client):
+    for state in states.values():
+        logging.info(f"Subscribing to [{config.topic}/{config.name}/{state.name()}/activate]")
+        client.subscribe(f"{config.topic}/{config.name}/{state.name()}/activate", 2)
 
 def on_connect(client, userdata, flags, rc):
     if (rc != 0):
@@ -63,36 +76,38 @@ def on_connect(client, userdata, flags, rc):
         exit(1)
     logging.info("MQTT connected")
     publish_available_states(client)
-    publish_current_state(client, determine_current_state())
-    logging.info(f"Subscribing to [{config.topic}/{config.name}/activate]")
-    client.subscribe(f"{config.topic}/{config.name}/activate", 2)
+    publish_current_options(client)
+    subscribe_to_activate_topics(client)
 
-def activate_state(client, name):
-    current_state = determine_current_state()
+def activate_option(client, state, name):
+    current_option = determine_current_option(state)
     if (name == "broken"):
-        logging.warning(f"Cannot activate state broken")
-        publish_current_state(client, current_state)
-    elif (current_state == name):
-        logging.info(f"Current state is already [{name}]")
-        publish_current_state(client, current_state)
+        logging.warning(f"Cannot activate option broken")
+        publish_current_option(client, current_option.name())
+    elif (current_option.name() == name):
+        logging.info(f"Current option is already [{name}]")
+        publish_current_option(client, state, current_option.name())
     else:
-        state = states.get(name)
-        if (state is None):
-            logging.warning(f"Tried to activate unknown state [{name}] in [{states.keys()}]")
-            publish_current_state(client, current_state)
-        elif (state.deactivate() is False):
-            logging.warn(f"Failed to deactivate current state [{current_state}]")
-            publish_current_state(client, "broken")
+        option = state.options().get(name)
+        if (option is None):
+            logging.warning(f"Tried to activate unknown option [{name}] in [{state.options().keys()}]")
+            publish_current_option(client, state, current_option.name())
+        elif (current_option.deactivate() is False):
+            logging.warning(f"Failed to deactivate current state [{current_option.name()}]")
+            publish_current_option(client, state, "broken")
         else:
-            if (state.activate()):
-                publish_current_state(client, name)
+            if (option.activate()):
+                publish_current_option(client, state, name)
             else:
-                publish_current_state(client, "broken")
+                publish_current_option(client, state, "broken")
 
 def on_message(client, userdata, msg):
-    if (msg.topic == f"{config.topic}/{config.name}/activate"):
-        activate_state(client, msg.payload.decode("utf-8"))
-    else:
+    handled = False
+    for state in states.values():
+        if (msg.topic == f"{config.topic}/{config.name}/{state.name()}/activate"):
+            handled = True
+            activate_option(client, state, msg.payload.decode("utf-8"))
+    if not handled:
         logging.warning(f"MQTT message received but not recognized [{msg.topic}] [{msg.payload}]")
 
 mqtt.run(config, on_connect, on_message)

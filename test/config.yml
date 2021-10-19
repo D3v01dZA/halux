@@ -3,21 +3,43 @@ mqtt:
   id: test
 
 states:
-  inactive:
-    test:
-      type: shell
-      command: ls /workspace/test/active
-      return_code: 2
-  active:
-    test:
-      type: shell
-      command: ls /workspace/test/active
-      return_code: 0
-    activate:
-      type: shell
-      command: touch /workspace/test/active
-      return_code: 0
-    deactivate:
-      type: shell
-      command: rm /workspace/test/active
-      return_code: 0
+  - name: activity
+    options:
+      - name: inactive
+        test:
+          type: shell
+          command: ls /workspace/test/active
+          return_code: 2
+      - name: active
+        test:
+          type: shell
+          command: ls /workspace/test/active
+          return_code: 0
+        activate:
+          type: shell
+          command: touch /workspace/test/active
+          return_code: 0
+        deactivate:
+          type: shell
+          command: rm /workspace/test/active
+          return_code: 0
+  - name: activity2
+    options:
+      - name: inactive
+        test:
+          type: shell
+          command: ls /workspace/test/active2
+          return_code: 2
+      - name: active
+        test:
+          type: shell
+          command: ls /workspace/test/active2
+          return_code: 0
+        activate:
+          type: shell
+          command: touch /workspace/test/active2
+          return_code: 0
+        deactivate:
+          type: shell
+          command: rm /workspace/test/active2
+          return_code: 0
