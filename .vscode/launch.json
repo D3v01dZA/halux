@@ -18,6 +18,13 @@
             "request": "launch",
             "module": "active",
             "cwd": "${workspaceFolder}/test"
+        },
+        {
+            "name": "Publish Inactive To Test Server",
+            "type": "python",
+            "request": "launch",
+            "module": "inactive",
+            "cwd": "${workspaceFolder}/test"
         }
     ]
 }
