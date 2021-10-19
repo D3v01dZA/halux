@@ -53,7 +53,7 @@ def publish_available_options(client, state):
     available_states.append("error")
     logging.info(f"Publishing available states [{available_states}] to [{config.topic}/{config.name}/status]")
     json_value = {
-        "name": config.name, 
+        "name": f"{config.name}/{state.name()}", 
         "command_topic": f"{config.topic}/{config.name}/{state.name()}/activate", 
         "state_topic": f"{config.topic}/{config.name}/{state.name()}/state",
         "options": available_states,
