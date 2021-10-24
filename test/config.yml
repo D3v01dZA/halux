@@ -6,11 +6,11 @@ scripts:
   - name: first
     type: shell
     command: echo "ASD"
-    return_code: 1
+    return_code: 0
   - name: second
     type: shell
     command: echo "ASD2"
-    return_code: 1
+    return_code: 0
 
 states:
   - name: activity

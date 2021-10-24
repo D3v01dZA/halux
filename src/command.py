@@ -12,13 +12,17 @@ class Shell():
         logging.info(f"Running [{self._command}] for [{parent_name}]")
         result = subprocess.run(self._command, shell=True, capture_output=True)
         logging.info(f"Result of running [{self._command}] for [{parent_name}] is [{result}]")
-        stdout = result.stdout.decode("utf-8").strip()
         if (self._return_code == result.returncode):
             if (self._return_value is not None):
-                return self._return_value == stdout
+                stdout = result.stdout.decode("utf-8").strip()
+                if self._return_value == stdout:
+                    return True
+                else:
+                    logging.info(f"Shell failed expected [{self._return_value}] but got [{stdout}]")
+                return False
             return True
         else:
-            logging.info(f"{self._return_value} {stdout}")
+            logging.info(f"Shell failed expected [{self._return_code}] but got [{result.returncode}]")
             return False
 
 def create_command(config):

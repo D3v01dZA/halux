@@ -88,7 +88,7 @@ def publish_available_scripts(client):
         available_scripts = []
         for name in scripts.keys():
             available_scripts.append(name)
-        available_scripts.append("none")
+        available_scripts.append("idle")
         available_scripts.append("broken")
         logging.info(f"Publishing available scripts [{available_scripts}] to [homeassistant/select/{config.topic}/scripts/config]")
         json_value = {
@@ -108,11 +108,11 @@ def publish_available_scripts(client):
 
 def publish_default_script(client):
     logging.info(f"Publishing current script [none] to [{config.topic}/{config.name}/scripts/status]")
-    client.publish(f"{config.topic}/{config.name}/scripts/state", "none", 2, True)
+    client.publish(f"{config.topic}/{config.name}/scripts/state", "idle", 2, True)
 
 def publish_broken_script(client):
     script_broken = True
-    logging.info(f"Publishing current script [none] to [{config.topic}/{config.name}/scripts/status]")
+    logging.info(f"Publishing current script [broken] to [{config.topic}/{config.name}/scripts/status]")
     client.publish(f"{config.topic}/{config.name}/scripts/state", "broken", 2, True)
 
 def on_connect(client, userdata, flags, rc):
@@ -133,7 +133,7 @@ def activate_script(client, name):
     elif (name == "broken"):
         logging.warning(f"Cannot activate script broken")
         publish_default_script(client)
-    elif (name == "none"):
+    elif (name == "idle"):
         logging.warning(f"Cannot activate script none")
         publish_default_script(client)
     else:
@@ -142,7 +142,7 @@ def activate_script(client, name):
             logging.warning(f"Tried to activate unknown script [{name}] in [{scripts.keys()}]")
             publish_default_script(client)
         else:
-            if (script.run()):
+            if script.run():
                 publish_default_script(client)
             else:
                 publish_broken_script(client)
