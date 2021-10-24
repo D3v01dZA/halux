@@ -2,6 +2,16 @@ mqtt:
   name: test
   id: test
 
+scripts:
+  - name: first
+    type: shell
+    command: echo "ASD"
+    return_code: 1
+  - name: second
+    type: shell
+    command: echo "ASD2"
+    return_code: 1
+
 states:
   - name: activity
     options:

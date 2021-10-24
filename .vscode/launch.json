@@ -25,6 +25,20 @@
             "request": "launch",
             "module": "inactive",
             "cwd": "${workspaceFolder}/test"
+        },
+        {
+            "name": "Publish Frist To Test Server",
+            "type": "python",
+            "request": "launch",
+            "module": "first",
+            "cwd": "${workspaceFolder}/test"
+        },
+        {
+            "name": "Publish Second To Test Server",
+            "type": "python",
+            "request": "launch",
+            "module": "second",
+            "cwd": "${workspaceFolder}/test"
         }
     ]
 }

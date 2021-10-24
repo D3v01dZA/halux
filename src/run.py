@@ -2,6 +2,7 @@ import logging
 import yaml
 import json
 import argparse
+import script
 import state
 import mqtt
 
@@ -15,12 +16,17 @@ with open(args.config, "r") as file:
 	try:
 		config_file = yaml.safe_load(file)
 	except yaml.YAMLError as ex:
-		print("Invalid Config")
+		logging.error("Invalid Config")
 		print(ex)
 		exit(1)
 
 config = mqtt.create_config(config_file)
+scripts = script.create_scripts(config_file)
+script_broken = False
 states = state.create_states(config_file)
+
+logging.info(f"Scripts: {scripts.keys()}")
+logging.info(f"States: {states.keys()}")
 
 def determine_current_option(current_state):
     logging.info(f"Determining current option for state {current_state.name()}")
@@ -47,16 +53,16 @@ def publish_current_options(client):
         publish_current_option(client, current_state, determine_current_option(current_state).name())
 
 def publish_available_options(client, current_state):
-    available_states = []
+    available_options = []
     for name in current_state.options().keys():
-        available_states.append(name)
-    available_states.append("broken")
-    logging.info(f"Publishing available states [{available_states}] to [{config.topic}/{config.name}/status]")
+        available_options.append(name)
+    available_options.append("broken")
+    logging.info(f"Publishing available options [{available_options}] to [homeassistant/select/{config.topic}/{current_state.name()}/config]")
     json_value = {
         "name": f"{config.name}-{current_state.name()}", 
         "command_topic": f"{config.topic}/{config.name}/{current_state.name()}/activate", 
         "state_topic": f"{config.topic}/{config.name}/{current_state.name()}/state",
-        "options": available_states,
+        "options": available_options,
         "unique_id": f"{config.id}-{current_state.name()}",
         "device": {
             "name": config.name.capitalize(),
@@ -65,25 +71,81 @@ def publish_available_options(client, current_state):
             "ids": config.id
         }
     }
-    client.publish(f"homeassistant/select/{config.topic}/{config.name}/config", json.dumps(json_value), 2, True)
+    client.publish(f"homeassistant/select/{config.topic}/{current_state.name()}/config", json.dumps(json_value), 2, True)
 
 def publish_available_states(client):
     for current_state in states.values():
         publish_available_options(client, current_state)
 
 def subscribe_to_activate_topics(client):
+    client.subscribe(f"{config.topic}/{config.name}/scripts/activate", 2)
     for current_state in states.values():
         logging.info(f"Subscribing to [{config.topic}/{config.name}/{current_state.name()}/activate]")
         client.subscribe(f"{config.topic}/{config.name}/{current_state.name()}/activate", 2)
+
+def publish_available_scripts(client):
+    if scripts:
+        available_scripts = []
+        for name in scripts.keys():
+            available_scripts.append(name)
+        available_scripts.append("none")
+        available_scripts.append("broken")
+        logging.info(f"Publishing available scripts [{available_scripts}] to [homeassistant/select/{config.topic}/scripts/config]")
+        json_value = {
+            "name": f"{config.name}-scripts", 
+            "command_topic": f"{config.topic}/{config.name}/scripts/activate", 
+            "state_topic": f"{config.topic}/{config.name}/scripts/state",
+            "options": available_scripts,
+            "unique_id": f"{config.id}-scripts",
+            "device": {
+                "name": config.name.capitalize(),
+                "manufacturer": config.topic.capitalize(),
+                "model": "Halux",
+                "ids": config.id
+            }
+        }
+        client.publish(f"homeassistant/select/{config.topic}/scripts/config", json.dumps(json_value), 2, True)
+
+def publish_default_script(client):
+    logging.info(f"Publishing current script [none] to [{config.topic}/{config.name}/scripts/status]")
+    client.publish(f"{config.topic}/{config.name}/scripts/state", "none", 2, True)
+
+def publish_broken_script(client):
+    script_broken = True
+    logging.info(f"Publishing current script [none] to [{config.topic}/{config.name}/scripts/status]")
+    client.publish(f"{config.topic}/{config.name}/scripts/state", "broken", 2, True)
 
 def on_connect(client, userdata, flags, rc):
     if (rc != 0):
         logging.error(f"MQTT connection dailed with [{rc}]")
         exit(1)
     logging.info("MQTT connected")
+    publish_available_scripts(client)
+    publish_default_script(client)
     publish_available_states(client)
     publish_current_options(client)
     subscribe_to_activate_topics(client)
+
+def activate_script(client, name):
+    if (script_broken):
+        logging.warning(f"Script was previously broken")
+        publish_broken_script(client)
+    elif (name == "broken"):
+        logging.warning(f"Cannot activate script broken")
+        publish_default_script(client)
+    elif (name == "none"):
+        logging.warning(f"Cannot activate script none")
+        publish_default_script(client)
+    else:
+        script = scripts.get(name)
+        if (script is None):
+            logging.warning(f"Tried to activate unknown script [{name}] in [{scripts.keys()}]")
+            publish_default_script(client)
+        else:
+            if (script.run()):
+                publish_default_script(client)
+            else:
+                publish_broken_script(client)
 
 def activate_option(client, current_state, name):
     current_option = determine_current_option(current_state)
@@ -112,6 +174,9 @@ def activate_option(client, current_state, name):
 
 def on_message(client, userdata, msg):
     handled = False
+    if (msg.topic == f"{config.topic}/{config.name}/scripts/activate"):
+        handled = True
+        activate_script(client, msg.payload.decode("utf-8"))
     for current_state in states.values():
         if (msg.topic == f"{config.topic}/{config.name}/{current_state.name()}/activate"):
             handled = True

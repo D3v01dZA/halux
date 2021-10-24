@@ -12,7 +12,7 @@ class Shell():
         logging.info(f"Running [{self._command}] for [{parent_name}]")
         result = subprocess.run(self._command, shell=True, capture_output=True)
         logging.info(f"Result of running [{self._command}] for [{parent_name}] is [{result}]")
-        stdout = result.stdout.decode("utf-8").strip();
+        stdout = result.stdout.decode("utf-8").strip()
         if (self._return_code == result.returncode):
             if (self._return_value is not None):
                 return self._return_value == stdout

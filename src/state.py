@@ -74,6 +74,7 @@ class State():
 
 def create_states(config):
     states = {}
-    for item in config["states"]:
-        states[util.required_key(item, "name")] = State(item)
+    if config.get("states") is not None:
+        for item in config["states"]:
+            states[util.required_key(item, "name")] = State(item)
     return states
