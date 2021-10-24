@@ -57,7 +57,13 @@ def publish_available_options(client, current_state):
         "command_topic": f"{config.topic}/{config.name}/{current_state.name()}/activate", 
         "state_topic": f"{config.topic}/{config.name}/{current_state.name()}/state",
         "options": available_states,
-        "unique_id": f"{config.id}-{current_state.name()}"
+        "unique_id": f"{config.id}-{current_state.name()}",
+        "device": {
+            "name": config.name.capitalize(),
+            "manufacturer": config.topic.capitalize(),
+            "model": "Halux",
+            "ids": config.id
+        }
     }
     client.publish(f"homeassistant/select/{config.topic}/{config.name}/config", json.dumps(json_value), 2, True)
 
