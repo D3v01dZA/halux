@@ -104,7 +104,7 @@ def publish_available_scripts(client):
                 "ids": config.id
             }
         }
-        client.publish(f"homeassistant/select/{config.topic}/scripts/config", json.dumps(json_value), 2, True)
+        client.publish(f"homeassistant/select/{config.topic}/{config.name}-scripts/config", json.dumps(json_value), 2, True)
 
 def publish_default_script(client):
     logging.info(f"Publishing current script [none] to [{config.topic}/{config.name}/scripts/status]")
