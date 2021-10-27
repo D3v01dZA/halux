@@ -71,7 +71,7 @@ def publish_available_options(client, current_state):
             "ids": config.id
         }
     }
-    client.publish(f"homeassistant/select/{config.topic}/{current_state.name()}/config", json.dumps(json_value), 2, True)
+    client.publish(f"homeassistant/select/{config.topic}/{config.id}-{config.name}-{current_state.name()}/config", json.dumps(json_value), 2, True)
 
 def publish_available_states(client):
     for current_state in states.values():
@@ -104,7 +104,7 @@ def publish_available_scripts(client):
                 "ids": config.id
             }
         }
-        client.publish(f"homeassistant/select/{config.topic}/{config.name}-scripts/config", json.dumps(json_value), 2, True)
+        client.publish(f"homeassistant/select/{config.topic}/{config.id}-{config.name}-scripts/config", json.dumps(json_value), 2, True)
 
 def publish_default_script(client):
     logging.info(f"Publishing current script [none] to [{config.topic}/{config.name}/scripts/status]")
