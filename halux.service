@@ -1,0 +1,11 @@
+[Unit]
+Description=Halux MQTT Server Controller
+After=network.target
+
+[Service]
+WorkingDirectory=<halux>/src/
+ExecStart=<halux>/venv/bin/python3 -m run --config <halux>/config.yml
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

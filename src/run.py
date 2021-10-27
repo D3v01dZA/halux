@@ -115,6 +115,10 @@ def publish_broken_script(client):
     logging.info(f"Publishing current script [broken] to [{config.topic}/{config.name}/scripts/status]")
     client.publish(f"{config.topic}/{config.name}/scripts/state", "broken", 2, True)
 
+def publish_current_script(client, script):
+    logging.info(f"Publishing current script [{script}] to [{config.topic}/{config.name}/scripts/status]")
+    client.publish(f"{config.topic}/{config.name}/scripts/state", script, 2, True)
+
 def on_connect(client, userdata, flags, rc):
     if (rc != 0):
         logging.error(f"MQTT connection dailed with [{rc}]")
@@ -142,6 +146,7 @@ def activate_script(client, name):
             logging.warning(f"Tried to activate unknown script [{name}] in [{scripts.keys()}]")
             publish_default_script(client)
         else:
+            publish_current_script(client, name)
             if script.run():
                 publish_default_script(client)
             else:
