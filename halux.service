@@ -6,6 +6,8 @@ After=network.target
 WorkingDirectory=<halux>/src/
 ExecStart=<halux>/venv/bin/python3 -m run --config <halux>/config.yml
 Restart=on-failure
+StartLimitIntervalSec=30
+StartLimitBurst=100
 
 [Install]
 WantedBy=multi-user.target
