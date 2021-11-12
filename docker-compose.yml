@@ -9,3 +9,9 @@ services:
     command: /bin/sh -c "while sleep 1000; do :; done"
   mqtt:
     image: eclipse-mosquitto:1.6
+  homeassistant:
+    image: homeassistant/home-assistant:latest
+    volumes:
+      - ./homeassistant:/config
+    ports:
+      - 8123:8123

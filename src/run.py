@@ -59,7 +59,7 @@ def publish_available_options(client, current_state):
     available_options.append("broken")
     logging.info(f"Publishing available options [{available_options}] to [homeassistant/select/{config.topic}/{current_state.name()}/config]")
     json_value = {
-        "name": f"{config.name}-{current_state.name()}", 
+        "name": f"{config.name}_{current_state.name()}", 
         "command_topic": f"{config.topic}/{config.name}/{current_state.name()}/activate", 
         "state_topic": f"{config.topic}/{config.name}/{current_state.name()}/state",
         "options": available_options,
@@ -89,10 +89,9 @@ def publish_available_scripts(client):
         for name in scripts.keys():
             available_scripts.append(name)
         available_scripts.append("idle")
-        available_scripts.append("broken")
         logging.info(f"Publishing available scripts [{available_scripts}] to [homeassistant/select/{config.topic}/scripts/config]")
         json_value = {
-            "name": f"{config.name}-scripts", 
+            "name": f"{config.name}_scripts", 
             "command_topic": f"{config.topic}/{config.name}/scripts/activate", 
             "state_topic": f"{config.topic}/{config.name}/scripts/state",
             "options": available_scripts,
@@ -105,15 +104,29 @@ def publish_available_scripts(client):
             }
         }
         client.publish(f"homeassistant/select/{config.topic}/{config.id}-{config.name}-scripts/config", json.dumps(json_value), 2, True)
+        json_value = {
+            "name": f"{config.name}_scripts_status", 
+            "state_topic": f"{config.topic}/{config.name}/scripts_status/state",
+            "unique_id": f"{config.id}-scripts-status",
+            "device_class": "problem",
+            "device": {
+                "name": config.name.capitalize(),
+                "manufacturer": config.topic.capitalize(),
+                "model": "Halux",
+                "ids": config.id
+            }
+        }
+        client.publish(f"homeassistant/binary_sensor/{config.topic}/{config.id}-{config.name}-scripts-status/config", json.dumps(json_value), 2, True)
 
 def publish_default_script(client):
-    logging.info(f"Publishing current script [none] to [{config.topic}/{config.name}/scripts/status]")
+    logging.info(f"Publishing current script [idle] to [{config.topic}/{config.name}/scripts/status]")
     client.publish(f"{config.topic}/{config.name}/scripts/state", "idle", 2, True)
 
 def publish_broken_script(client):
     script_broken = True
-    logging.info(f"Publishing current script [broken] to [{config.topic}/{config.name}/scripts/status]")
-    client.publish(f"{config.topic}/{config.name}/scripts/state", "broken", 2, True)
+    logging.info(f"Publishing broken to [{config.topic}/{config.name}/scripts_status/status]")
+    client.publish(f"{config.topic}/{config.name}/scripts_status/state", "on", 2, True)
+    publish_default_script(client)
 
 def publish_current_script(client, script):
     logging.info(f"Publishing current script [{script}] to [{config.topic}/{config.name}/scripts/status]")
@@ -134,9 +147,6 @@ def activate_script(client, name):
     if (script_broken):
         logging.warning(f"Script was previously broken")
         publish_broken_script(client)
-    elif (name == "broken"):
-        logging.warning(f"Cannot activate script broken")
-        publish_default_script(client)
     elif (name == "idle"):
         logging.warning(f"Cannot activate script none")
         publish_default_script(client)
