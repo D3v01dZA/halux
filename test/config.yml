@@ -6,7 +6,7 @@ scripts:
   - name: first
     type: shell
     command: echo "ASD"
-    return_code: 0
+    return_code: 1
   - name: second
     type: shell
     command: echo "ASD2"
@@ -19,7 +19,7 @@ states:
         test:
           type: shell
           command: ls /workspace/test/active
-          return_code: 2
+          return_code: 1
       - name: active
         test:
           type: shell

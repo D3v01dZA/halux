@@ -40,7 +40,7 @@ def determine_current_option(current_state):
         else:
             logging.info(f"Test [{key}] failed")
     if (temp_option == None):
-        temp_option = state.Broken()
+        return None
     logging.info(f"Determined current option as [{temp_option.name()}] for state {current_state.name()}")
     return temp_option
 
@@ -48,18 +48,25 @@ def publish_current_option(client, current_state, current_option):
     logging.info(f"Publishing current state [{current_option}] to [{config.topic}/{config.name}/{current_state.name()}/status]")
     client.publish(f"{config.topic}/{config.name}/{current_state.name()}/state", current_option, 2, True)
 
+def publish_broken_option(client, current_state):
+    logging.info(f"Publishing broken to [{config.topic}/{config.name}/{current_state.name()}-status/state]")
+    client.publish(f"{config.topic}/{config.name}/{current_state.name()}-status/state", "ON", 2, True)
+
 def publish_current_options(client):
     for current_state in states.values():
-        publish_current_option(client, current_state, determine_current_option(current_state).name())
+        current_option = determine_current_option(current_state)
+        if (current_option is None):
+            publish_broken_option(client, current_state)
+        else:
+            publish_current_option(client, current_state, current_option.name())
 
 def publish_available_options(client, current_state):
     available_options = []
     for name in current_state.options().keys():
         available_options.append(name)
-    available_options.append("broken")
     logging.info(f"Publishing available options [{available_options}] to [homeassistant/select/{config.topic}/{current_state.name()}/config]")
     json_value = {
-        "name": f"{config.name}-{current_state.name()}", 
+        "name": f"{config.name.capitalize()} {current_state.name().capitalize()}", 
         "command_topic": f"{config.topic}/{config.name}/{current_state.name()}/activate", 
         "state_topic": f"{config.topic}/{config.name}/{current_state.name()}/state",
         "options": available_options,
@@ -72,10 +79,28 @@ def publish_available_options(client, current_state):
         }
     }
     client.publish(f"homeassistant/select/{config.topic}/{config.id}-{config.name}-{current_state.name()}/config", json.dumps(json_value), 2, True)
+    json_value = {
+        "name": f"{config.name.capitalize()} {current_state.name().capitalize()} Status", 
+        "state_topic": f"{config.topic}/{config.name}/{current_state.name()}-status/state",
+        "unique_id": f"{config.id}-{current_state.name()}-status",
+        "device_class": "problem",
+        "device": {
+            "name": config.name.capitalize(),
+            "manufacturer": config.topic.capitalize(),
+            "model": "Halux",
+            "ids": config.id
+        }
+    }
+    client.publish(f"homeassistant/binary_sensor/{config.topic}/{config.id}-{config.name}-{current_state.name()}-status/config", json.dumps(json_value), 2, True)
 
 def publish_available_states(client):
     for current_state in states.values():
         publish_available_options(client, current_state)
+
+def publish_not_broken_states(client):
+    for current_state in states.values():
+        logging.info(f"Publishing not broken to [{config.topic}/{config.name}/{current_state.name()}-status/state]")
+        client.publish(f"{config.topic}/{config.name}/{current_state.name()}-status/state", "OFF", 2, True)
 
 def subscribe_to_activate_topics(client):
     client.subscribe(f"{config.topic}/{config.name}/scripts/activate", 2)
@@ -89,10 +114,9 @@ def publish_available_scripts(client):
         for name in scripts.keys():
             available_scripts.append(name)
         available_scripts.append("idle")
-        available_scripts.append("broken")
         logging.info(f"Publishing available scripts [{available_scripts}] to [homeassistant/select/{config.topic}/scripts/config]")
         json_value = {
-            "name": f"{config.name}-scripts", 
+            "name": f"{config.name.capitalize()} Scripts", 
             "command_topic": f"{config.topic}/{config.name}/scripts/activate", 
             "state_topic": f"{config.topic}/{config.name}/scripts/state",
             "options": available_scripts,
@@ -105,15 +129,33 @@ def publish_available_scripts(client):
             }
         }
         client.publish(f"homeassistant/select/{config.topic}/{config.id}-{config.name}-scripts/config", json.dumps(json_value), 2, True)
+        json_value = {
+            "name": f"{config.name.capitalize()} Scripts Status", 
+            "state_topic": f"{config.topic}/{config.name}/scripts_status/state",
+            "unique_id": f"{config.id}-scripts-status",
+            "device_class": "problem",
+            "device": {
+                "name": config.name.capitalize(),
+                "manufacturer": config.topic.capitalize(),
+                "model": "Halux",
+                "ids": config.id
+            }
+        }
+        client.publish(f"homeassistant/binary_sensor/{config.topic}/{config.id}-{config.name}-scripts-status/config", json.dumps(json_value), 2, True)
 
 def publish_default_script(client):
-    logging.info(f"Publishing current script [none] to [{config.topic}/{config.name}/scripts/status]")
+    logging.info(f"Publishing current script [idle] to [{config.topic}/{config.name}/scripts/status]")
     client.publish(f"{config.topic}/{config.name}/scripts/state", "idle", 2, True)
 
+def publish_not_broken_script(client):
+    logging.info(f"Publishing not broken to [{config.topic}/{config.name}/scripts_status/status]")
+    client.publish(f"{config.topic}/{config.name}/scripts_status/state", "OFF", 2, True)
+    publish_default_script(client)
+
 def publish_broken_script(client):
-    script_broken = True
-    logging.info(f"Publishing current script [broken] to [{config.topic}/{config.name}/scripts/status]")
-    client.publish(f"{config.topic}/{config.name}/scripts/state", "broken", 2, True)
+    logging.info(f"Publishing broken to [{config.topic}/{config.name}/scripts_status/status]")
+    client.publish(f"{config.topic}/{config.name}/scripts_status/state", "ON", 2, True)
+    publish_default_script(client)
 
 def publish_current_script(client, script):
     logging.info(f"Publishing current script [{script}] to [{config.topic}/{config.name}/scripts/status]")
@@ -126,7 +168,9 @@ def on_connect(client, userdata, flags, rc):
     logging.info("MQTT connected")
     publish_available_scripts(client)
     publish_default_script(client)
+    publish_not_broken_script(client)
     publish_available_states(client)
+    publish_not_broken_states(client)
     publish_current_options(client)
     subscribe_to_activate_topics(client)
 
@@ -134,9 +178,6 @@ def activate_script(client, name):
     if (script_broken):
         logging.warning(f"Script was previously broken")
         publish_broken_script(client)
-    elif (name == "broken"):
-        logging.warning(f"Cannot activate script broken")
-        publish_default_script(client)
     elif (name == "idle"):
         logging.warning(f"Cannot activate script none")
         publish_default_script(client)
@@ -157,9 +198,9 @@ def activate_option(client, current_state, name):
     if (name == "broken"):
         logging.warning(f"Cannot activate option broken")
         publish_current_option(client, current_state, current_option.name())
-    elif (current_option.name() == "broken"):
-        logging.warning(f"Cannot change, already broken")
-        publish_current_option(client, current_state, current_option.name())
+    elif (current_option is None):
+        logging.warning(f"Cannot change because currently broken")
+        publish_broken_option(client, current_state)
     elif (current_option.name() == name):
         logging.info(f"Current option is already [{name}]")
         publish_current_option(client, current_state, current_option.name())
@@ -170,12 +211,12 @@ def activate_option(client, current_state, name):
             publish_current_option(client, current_state, current_option.name())
         elif (current_option.deactivate() is False):
             logging.warning(f"Failed to deactivate current state [{current_option.name()}]")
-            publish_current_option(client, current_state, "broken")
+            publish_broken_option(client, current_state)
         else:
             if (option.activate()):
                 publish_current_option(client, current_state, name)
             else:
-                publish_current_option(client, current_state, "broken")
+                publish_broken_option(client, current_state)
 
 def on_message(client, userdata, msg):
     handled = False

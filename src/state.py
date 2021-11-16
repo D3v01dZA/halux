@@ -48,13 +48,6 @@ class Option():
             logging.error(f"Running deactivate for [{self._name}] failed")
             return False
 
-class Broken():
-    def __init__(self):
-        self._name = "broken"
-
-    def name(self):
-        return self._name
-
 def create_options(config):
     states = {}
     for item in config:
