@@ -66,27 +66,27 @@ def publish_available_options(client, current_state):
         available_options.append(name)
     logging.info(f"Publishing available options [{available_options}] to [homeassistant/select/{config.topic}/{current_state.name()}/config]")
     json_value = {
-        "name": f"{config.name.capitalize()} {current_state.name().capitalize()}", 
+        "name": f"{config.name.title()} {current_state.name().title()}", 
         "command_topic": f"{config.topic}/{config.name}/{current_state.name()}/activate", 
         "state_topic": f"{config.topic}/{config.name}/{current_state.name()}/state",
         "options": available_options,
         "unique_id": f"{config.id}-{current_state.name()}",
         "device": {
-            "name": config.name.capitalize(),
-            "manufacturer": config.topic.capitalize(),
+            "name": config.name.title(),
+            "manufacturer": config.topic.title(),
             "model": "Halux",
             "ids": config.id
         }
     }
     client.publish(f"homeassistant/select/{config.topic}/{config.id}-{config.name}-{current_state.name()}/config", json.dumps(json_value), 2, True)
     json_value = {
-        "name": f"{config.name.capitalize()} {current_state.name().capitalize()} Status", 
+        "name": f"{config.name.title()} {current_state.name().title()} Status", 
         "state_topic": f"{config.topic}/{config.name}/{current_state.name()}-status/state",
         "unique_id": f"{config.id}-{current_state.name()}-status",
         "device_class": "problem",
         "device": {
-            "name": config.name.capitalize(),
-            "manufacturer": config.topic.capitalize(),
+            "name": config.name.title(),
+            "manufacturer": config.topic.title(),
             "model": "Halux",
             "ids": config.id
         }
@@ -115,25 +115,25 @@ def publish_available_scripts(client):
         for name in scripts.keys():
             logging.info(f"Publishing available scripts [name] to [homeassistant/button/{config.topic}/{config.id}-{config.name}-{name}-script/config]")
             json_value = {
-                "name": f"{config.name.capitalize()} {name.replace('-', ' ').capitalize()} Script", 
+                "name": f"{config.name.title()} {name.replace('-', ' ').title()} Script", 
                 "command_topic": f"{config.topic}/{config.name}/scripts/{name}/activate", 
                 "unique_id": f"{config.id}-{name}-script",
                 "device": {
-                    "name": config.name.capitalize(),
-                    "manufacturer": config.topic.capitalize(),
+                    "name": config.name.title(),
+                    "manufacturer": config.topic.title(),
                     "model": "Halux",
                     "ids": config.id
                 }
             }
             client.publish(f"homeassistant/button/{config.topic}/{config.id}-{config.name}-{name}-script/config", json.dumps(json_value), 2, True)
         json_value = {
-            "name": f"{config.name.capitalize()} Scripts Status", 
+            "name": f"{config.name.title()} Scripts Status", 
             "state_topic": f"{config.topic}/{config.name}/scripts_status/state",
             "unique_id": f"{config.id}-scripts-status",
             "device_class": "problem",
             "device": {
-                "name": config.name.capitalize(),
-                "manufacturer": config.topic.capitalize(),
+                "name": config.name.title(),
+                "manufacturer": config.topic.title(),
                 "model": "Halux",
                 "ids": config.id
             }
