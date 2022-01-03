@@ -103,32 +103,29 @@ def publish_not_broken_states(client):
         client.publish(f"{config.topic}/{config.name}/{current_state.name()}-status/state", "OFF", 2, True)
 
 def subscribe_to_activate_topics(client):
-    client.subscribe(f"{config.topic}/{config.name}/scripts/activate", 2)
+    for name in scripts.keys():
+        logging.info(f"Subscribing to [{config.topic}/{config.name}/scripts/{name}/activate]")
+        client.subscribe(f"{config.topic}/{config.name}/scripts/{name}/activate", 2)
     for current_state in states.values():
         logging.info(f"Subscribing to [{config.topic}/{config.name}/{current_state.name()}/activate]")
         client.subscribe(f"{config.topic}/{config.name}/{current_state.name()}/activate", 2)
 
 def publish_available_scripts(client):
     if scripts:
-        available_scripts = []
         for name in scripts.keys():
-            available_scripts.append(name)
-        available_scripts.append("idle")
-        logging.info(f"Publishing available scripts [{available_scripts}] to [homeassistant/select/{config.topic}/scripts/config]")
-        json_value = {
-            "name": f"{config.name.capitalize()} Scripts", 
-            "command_topic": f"{config.topic}/{config.name}/scripts/activate", 
-            "state_topic": f"{config.topic}/{config.name}/scripts/state",
-            "options": available_scripts,
-            "unique_id": f"{config.id}-scripts",
-            "device": {
-                "name": config.name.capitalize(),
-                "manufacturer": config.topic.capitalize(),
-                "model": "Halux",
-                "ids": config.id
+            logging.info(f"Publishing available scripts [name] to [homeassistant/button/{config.topic}/{config.id}-{config.name}-{name}-script/config]")
+            json_value = {
+                "name": f"{config.name.capitalize()} {name.capitalize()} Script", 
+                "command_topic": f"{config.topic}/{config.name}/scripts/{name}/activate", 
+                "unique_id": f"{config.id}-{name}-script",
+                "device": {
+                    "name": config.name.capitalize(),
+                    "manufacturer": config.topic.capitalize(),
+                    "model": "Halux",
+                    "ids": config.id
+                }
             }
-        }
-        client.publish(f"homeassistant/select/{config.topic}/{config.id}-{config.name}-scripts/config", json.dumps(json_value), 2, True)
+            client.publish(f"homeassistant/button/{config.topic}/{config.id}-{config.name}-{name}-script/config", json.dumps(json_value), 2, True)
         json_value = {
             "name": f"{config.name.capitalize()} Scripts Status", 
             "state_topic": f"{config.topic}/{config.name}/scripts_status/state",
@@ -220,9 +217,10 @@ def activate_option(client, current_state, name):
 
 def on_message(client, userdata, msg):
     handled = False
-    if (msg.topic == f"{config.topic}/{config.name}/scripts/activate"):
-        handled = True
-        activate_script(client, msg.payload.decode("utf-8"))
+    for name in scripts.keys():
+        if (msg.topic == f"{config.topic}/{config.name}/scripts/{name}/activate"):
+            handled = True
+            activate_script(client, name)
     for current_state in states.values():
         if (msg.topic == f"{config.topic}/{config.name}/{current_state.name()}/activate"):
             handled = True
