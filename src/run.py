@@ -115,7 +115,7 @@ def publish_available_scripts(client):
         for name in scripts.keys():
             logging.info(f"Publishing available scripts [name] to [homeassistant/button/{config.topic}/{config.id}-{config.name}-{name}-script/config]")
             json_value = {
-                "name": f"{config.name.capitalize()} {name.replace('-', '').capitalize()} Script", 
+                "name": f"{config.name.capitalize()} {name.replace('-', ' ').capitalize()} Script", 
                 "command_topic": f"{config.topic}/{config.name}/scripts/{name}/activate", 
                 "unique_id": f"{config.id}-{name}-script",
                 "device": {
