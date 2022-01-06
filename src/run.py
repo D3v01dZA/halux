@@ -23,6 +23,7 @@ with open(args.config, "r") as file:
 config = mqtt.create_config(config_file)
 scripts = script.create_scripts(config_file)
 script_broken = False
+script_running = ""
 states = state.create_states(config_file)
 
 logging.info(f"Scripts: {scripts.keys()}")
@@ -140,23 +141,13 @@ def publish_available_scripts(client):
         }
         client.publish(f"homeassistant/binary_sensor/{config.topic}/{config.id}-{config.name}-scripts-status/config", json.dumps(json_value), 2, True)
 
-def publish_default_script(client):
-    logging.info(f"Publishing current script [idle] to [{config.topic}/{config.name}/scripts/status]")
-    client.publish(f"{config.topic}/{config.name}/scripts/state", "idle", 2, True)
-
 def publish_not_broken_script(client):
     logging.info(f"Publishing not broken to [{config.topic}/{config.name}/scripts_status/status]")
     client.publish(f"{config.topic}/{config.name}/scripts_status/state", "OFF", 2, True)
-    publish_default_script(client)
 
 def publish_broken_script(client):
     logging.info(f"Publishing broken to [{config.topic}/{config.name}/scripts_status/status]")
     client.publish(f"{config.topic}/{config.name}/scripts_status/state", "ON", 2, True)
-    publish_default_script(client)
-
-def publish_current_script(client, script):
-    logging.info(f"Publishing current script [{script}] to [{config.topic}/{config.name}/scripts/status]")
-    client.publish(f"{config.topic}/{config.name}/scripts/state", script, 2, True)
 
 def on_connect(client, userdata, flags, rc):
     if (rc != 0):
@@ -164,7 +155,6 @@ def on_connect(client, userdata, flags, rc):
         exit(1)
     logging.info("MQTT connected")
     publish_available_scripts(client)
-    publish_default_script(client)
     publish_not_broken_script(client)
     publish_available_states(client)
     publish_not_broken_states(client)
@@ -175,19 +165,12 @@ def activate_script(client, name):
     if (script_broken):
         logging.warning(f"Script was previously broken")
         publish_broken_script(client)
-    elif (name == "idle"):
-        logging.warning(f"Cannot activate script none")
-        publish_default_script(client)
     else:
         script = scripts.get(name)
         if (script is None):
             logging.warning(f"Tried to activate unknown script [{name}] in [{scripts.keys()}]")
-            publish_default_script(client)
         else:
-            publish_current_script(client, name)
-            if script.run():
-                publish_default_script(client)
-            else:
+            if not script.run():
                 publish_broken_script(client)
 
 def activate_option(client, current_state, name):
