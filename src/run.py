@@ -116,7 +116,7 @@ def publish_available_scripts(client):
         for name in scripts.keys():
             logging.info(f"Publishing available scripts [name] to [homeassistant/button/{config.topic}/{config.id}-{config.name}-{name}-script/config]")
             json_value = {
-                "name": f"{config.name.title()} Halux {name.replace('-', ' ').title()} Script", 
+                "name": f"{name.replace('-', ' ').title()} Script", 
                 "command_topic": f"{config.topic}/{config.name}/scripts/{name}/activate", 
                 "unique_id": f"{config.id}-{name}-script",
                 "device": {
@@ -128,7 +128,7 @@ def publish_available_scripts(client):
             }
             client.publish(f"homeassistant/button/{config.topic}/{config.id}-{config.name}-{name}-script/config", json.dumps(json_value), 2, True)
         json_value = {
-            "name": f"{config.name.title()} Halux Scripts Status", 
+            "name": f"Scripts Status", 
             "state_topic": f"{config.topic}/{config.name}/scripts_status/state",
             "unique_id": f"{config.id}-scripts-status",
             "device_class": "problem",
